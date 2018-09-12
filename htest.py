@@ -10,7 +10,7 @@ xrang= numpy.arange(-2,2,0.01)
 yrang= numpy.arange(-2,2,0.01)
 
 
-for p in range(0,5)
+for p in range(0,5):
   VeB=[0,0,0,0,0,0,0,0,0,0,0]
   VeB[p]=1
 
