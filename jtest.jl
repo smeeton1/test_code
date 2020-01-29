@@ -1,3 +1,8 @@
+
+for arg in ARGS
+ println(arg)
+end
+
 x=1
 y=x
 for i=1:5

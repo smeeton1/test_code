@@ -9,11 +9,34 @@ function check_str(a)
     end
 end
  
+fname = []
+oname = []
+verbous = false
+ 
+for i=1:size(ARGS,1)
+ if ARGS[i] == "-f"
+   i=i+1
+   push!(fname,ARGS[i])
+ elseif ARGS[i] == "-h"
+   println(" ")
+ elseif ARGS[i] == "-o"
+   i=i+1
+   push!(oname,ARGS[i])
+ elseif ARGS[i] == "-v"
+   verbous = true
+ end 
+end 
+  println(fname)
+ 
+ if !isempty(oname)
+    println("empty")
+ end
+ 
  
  
  
  a=[]
- open("testinput") do f
+ open(fname[1]) do f
    i=1
    while !eof(f)
     x=readline(f)
