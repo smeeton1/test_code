@@ -62,7 +62,6 @@ end
 
 
 function Init_st(i::Index,a)
-  println(isa(a,Array))
   A = ITensor(i)
 
   if isa(a,Array)
@@ -91,7 +90,6 @@ function Init_st(i::Index,a)
    A[i(3)]= 0.0 + 0.0im
    A[i(4)]= 0.0 + 0.0im
   end 
-  println(A)
   return A
   
 end
@@ -117,29 +115,23 @@ function Index_setup(a)
 end
 
 function Tensor_Setup(N,d,a)
- println(N)
- println(size(a,1))
  Ham=[]
  for i=N+2:size(a,1)
-   println(i)
-   println(a[i][1])
-   println(!isempty(Ham))
    if a[i][1] == "H"
      if !isempty(Ham)
-       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])
+       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])&&(order(Ham[end])==2)
          Ham[end]=Ham[end]+HGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])
        else
          push!(Ham,HGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2]) )
        end
      else
-       println(HGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2]))
        push!(Ham,HGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2]) )
      end
    end
    
    if a[i][1] == "X"
      if !isempty(Ham)
-       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])
+       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])&&(order(Ham[end])==2)
          Ham[end]=Ham[end]+XGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2])
        else
          push!(Ham,XGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2]) )
@@ -151,7 +143,7 @@ function Tensor_Setup(N,d,a)
    
    if a[i][1] == "CN"
      if !isempty(Ham)
-       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2],d[parse(Int64,a[i][3]),1],d[parse(Int64,a[i][3]),2])
+       if hasinds(Ham[end],d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2],d[parse(Int64,a[i][3]),1],d[parse(Int64,a[i][3]),2])&&(order(Ham[end])==4)
          Ham[end]=Ham[end]+CNotGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2],d[parse(Int64,a[i][3]),1],d[parse(Int64,a[i][3]),2])
        else
          push!(Ham,CNotGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2],d[parse(Int64,a[i][3]),1],d[parse(Int64,a[i][3]),2]) )
@@ -160,11 +152,48 @@ function Tensor_Setup(N,d,a)
        push!(Ham,CNotGate(d[parse(Int64,a[i][2]),1],d[parse(Int64,a[i][2]),2],d[parse(Int64,a[i][3]),1],d[parse(Int64,a[i][3]),2]) )
      end
    end
-   println(Ham)
  end
 
  return Ham
 end
+
+function Ten_Add(Tens)
+ fin=[]
+ N = size(Tens,1)
+ println(N)
+ re=[]
+ append!(re,0)
+ for i=1:N
+   println(Tens[i])
+   if !(i in re)
+   push!(fin,Tens[i])
+   ad = true
+   j=i+1
+   while ad
+    println(j)
+    if j>N
+      ad = false
+    elseif hasinds(Tens[j],Tens[i])
+     if order(Tens[i])==order(Tens[j])
+        fin[i]=fin[i]+Tens[j]
+        append!(re,j)
+        j=j+1
+     else
+        ad = false
+     end
+    else
+      j=j+1
+    end
+   
+   end
+   end
+ 
+ end
+
+ return fin
+ 
+end
+
 
 
 
@@ -189,7 +218,12 @@ println(Q)
 # println(HGate(d[1,1],d[1,2]))
 
 Ham = Tensor_Setup(parse(Int64,a[1][1]),d,a)
+# println(size(Ham,1))
+# println(Ham[4])
+Ham = Ten_Add(Ham)
 
+#println(hasinds(Ham[1],Ham[2]))
+println(size(Ham,1))
 println(Ham)
  
  
