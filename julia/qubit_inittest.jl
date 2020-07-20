@@ -1,4 +1,4 @@
-using ITensors
+using ITensors      
 
 function HGate(i::Index, j::Index)
   A = ITensor(i,j)
@@ -98,7 +98,7 @@ end
 function Inital_State(N,d,a)
  Q=ITensor[]
  for i=1:N
- println(d[i,2],a[1+i])
+ #println(d[i,2],a[1+i])
   push!(Q,Init_st(d[i,2],a[1+i]))
  end
  return Q
@@ -160,17 +160,18 @@ end
 function Ten_Add(Tens)
  fin=[]
  N = size(Tens,1)
- println(N)
+ #println(N)
  re=[]
+ #append!(fin,Tens[1])
  append!(re,0)
  for i=1:N
-   println(Tens[i])
+  # println(Tens[i])
    if !(i in re)
    push!(fin,Tens[i])
    ad = true
    j=i+1
    while ad
-    println(j)
+    #println(j)
     if j>N
       ad = false
     elseif hasinds(Tens[j],Tens[i])
@@ -206,22 +207,30 @@ end
 #    println(x)
    end
  end
- println(a[1])
-
+# println(a[1])
+println('1')
 d=Index_setup(parse(Int64,a[1][1])) 
-println(size(a[2],1))
-println(d)
-
+#println(size(a[2],1))
+#println(d)
+println('2')
 Q=Inital_State(parse(Int64,a[1][1]),d,a)
 
-println(Q)
+#println(Q)
 # println(HGate(d[1,1],d[1,2]))
-
+println('3')
 Ham = Tensor_Setup(parse(Int64,a[1][1]),d,a)
+println('4')
 # println(size(Ham,1))
 # println(Ham[4])
 Ham = Ten_Add(Ham)
-
+println('5')
+T= CNotGate(d[1,1],d[1,2],d[2,1],d[2,2])
+println(T)
+println("svd of T")
+U,S,V =svd(T,(d[1,1],d[1,2]))
+println("U=",U)
+println("S=",S)
+println("V=",V)
 #println(hasinds(Ham[1],Ham[2]))
 println(size(Ham,1))
 println(Ham)
