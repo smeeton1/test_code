@@ -1,4 +1,5 @@
-using ITensors     
+using ITensors  
+using Random
 
 
 
@@ -241,6 +242,97 @@ function Mtra(i::Index)
 
 end 
 
+function Par_Trac(T::ITensor, I::Index)
+ if hasinds(T,I)
+
+  index=inds(T)
+  A=T
+  for j=1:length(index)
+    if index[j]!=I
+     temp= Mtra(index[j])
+     A= A*temp
+    end
+
+  end
+  return A
+ else
+  println(I, "is not in T")
+  return T
+ end
+
+
+end
+
+function Contract_Lines(Q,T)
+ N=size(Q,1)
+ A=[]
+ for i=1:N
+   push!(A,line_mps(Q[i],T))
+ end
+ B=A[1]*A[2]
+ for i=3:N
+   B=B*A[i]
+ end
+ index=inds(B)
+ #println(index)
+ #println(length(index))
+ for j=1:N
+  A[j]=Par_Trac(B, index[j])
+  #println("o= ",order(A[j]))
+ end
+ return A
+
+end
+
+function Contract_node(Q,T,d::Integer)
+ N=size(Q,1)
+ M=size(T,1)
+ A=[]
+ #do d contraction  along a given index
+
+
+end
+
+function Q_Meas(Q)
+ i=0
+ while i<30
+  x=bitrand()
+  if x[1]
+   if rand() < abs(Q[1])
+    return 1
+   end
+  else
+   if rand() < abs(Q[4])
+    return 0
+   end
+  end
+  i=i+1
+ end
+ x =bitrand()
+ if x[1]
+    return 1
+ else
+    return 0
+ end
+
+end
+
+function density_out(T)
+
+  println(T[1],' ',T[2])
+  println(T[3],' ',T[4])
+
+end
+
+function wave_out(T)
+if sign(T[2]) == 0
+ println(sqrt(T[1]),' ', sqrt(T[4]))
+else
+ println(sqrt(T[1]),' ', sign(T[2])*sqrt(T[4]))
+end
+
+end
+
 
  a=[]
  open("input") do f
@@ -259,7 +351,7 @@ d=Index_setup(parse(Int64,a[1][1]))
 println('2')
 Q=Inital_State(parse(Int64,a[1][1]),d,a)
 
-println(Q)
+#println(Q)
 # println(HGate(d[1,1],d[1,2]))
 println('3')
 Ham = Tensor_Setup(parse(Int64,a[1][1]),d,a)
@@ -270,8 +362,9 @@ println('4')
 println('5')
 Ham = Ten_split(Ham)
 println('6')
-
-
+A=[]
+A=Contract_Lines(Q,Ham)
+println('7')
 
 Tr=ITensor[]
 push!(Tr,Mtra(d[1,1]))
@@ -281,24 +374,43 @@ push!(Tr,Mtra(d[3,2]))
 Q[1]= line_mps(Q[1],Ham)
 Q[2]= line_mps(Q[2],Ham)
 Q[3]= line_mps(Q[3],Ham)
-println('7')
-T1=Q[3]*Q[2]*Q[1]*Tr[1]*Tr[2]
-T2=Q[2]*Q[1]*Q[3]*Tr[2]*Tr[3]
-T3=Q[2]*Q[1]*Q[3]*Tr[1]*Tr[3]
 
+
+T1=Q[3]*Q[2]*Q[1]*Tr[2]*Tr[3]
+T2=Q[1]*Q[2]*Q[3]
+T3=Q[2]*Q[1]*Q[3]*Tr[1]*Tr[2]
+T2=Par_Trac(T2, d[2,2])
+
+# O1=Q[1]*Tr[1]
+# O2=Q[2]*Tr[2]
+# O3=Q[3]*Tr[3]
+println('8')
+# for j=1:10
+#  println(Q_Meas(T1))
+# end
+density_out(T1)
+wave_out(T1)
+wave_out(T2)
+# T1p=O3*O2*Q[1]
+# T2p=O3*O1*Q[2]
+# T3p=O2*O1*Q[3]
 # if T1==T2
 #  println("T")
 # else
 #  println("F")
 # end
+println('9')
 println(T1)
+#println(A[1])
 println(T2)
+#println(A[2])
 println(T3)
+#println(A[3])
 
 # println(Q[1])
 # println(Q[2])
 # println(Q[3])
-println(norm(T1),norm(T2),norm(T3))
+# println(norm(T1),norm(T2),norm(T3))
 #println(hasinds(Ham[1],Ham[2]))
 #println("Ham size =" ,size(Ham,1))
 #println(Ham)
