@@ -91,14 +91,77 @@ int main()
    /**********************
    * Computing: D_{m,x,n,y} = A_{m,h,k,n} B_{u,k,h} C_{x,u,y}
    **********************/
-
-   constexpr int32_t numInputs = 3;
+   int qn=3;
+   int32_t numInputs = qn;
 
    // Create vector of modes
    std::vector<int32_t> modesA{'m','h'};
    std::vector<int32_t> modesB{'h','u'};
    std::vector<int32_t> modesC{'u','y'};
    std::vector<int32_t> modesD{'m','y'};
+
+
+   // arbitary length chain.
+   std::unordered_map<int32_t, int64_t> extent1;
+   std::vector<int32_t> modes[qn];
+   for(int i=0;i<qn;i++){
+           modes[i].push_back(i);
+           modes[i].push_back(i+1);
+           extent1[i]=2;
+   }
+   extent1[qn]=2;
+   std::vector<int32_t> out{0,qn};
+   printf("created indexes\n");
+
+   std::vector<int64_t> extentm[qn];
+   for(int i=0;i<qn;i++){
+      for (auto mode : modes[i])
+         extentm[i].push_back(extent1[mode]);
+   }
+   std::vector<int64_t> extentout;
+   for (auto mode : out)
+         extentout.push_back(extent1[mode]);
+
+
+
+   size_t elements[qn];
+   for(int i=0;i<qn;i++){
+      elements[i]= 1;
+      for (auto mode : modes[i])
+         elements[i] *= extent1[mode];
+   }
+
+   size_t elementsout = 1;
+   for (auto mode : out)
+      elementsout *= extent1[mode];
+
+   size_t size1[qn];
+   for(int i=0;i<qn;i++)
+      size1[i]= sizeof(floatType) * elements[i];
+
+   size_t sizeout = sizeof(floatType) * elementsout;
+
+
+   void* rawDataIn_q[qn];
+   void* out_d;
+   for(int i=0;i<qn;i++)
+        HANDLE_CUDA_ERROR( cudaMalloc((void**) &rawDataIn_q[i], size1[i]) );
+   HANDLE_CUDA_ERROR( cudaMalloc((void**) &out_d, sizeout));
+
+   floatType *mods[qn];
+   for(int i=0;i<qn;i++)
+          mods[i]= (floatType*) malloc(sizeof(floatType) * elements[i]);
+
+   floatType *outO = (floatType*) malloc(sizeof(floatType) * elementsout);
+
+
+   for(int j =0;j<qn;j++){
+      for (uint64_t i = 0; i < elements[j]-1; i++)
+         mods[j][i] = ((floatType) 1)/sqrt(2);
+      mods[j][elements[j]] = ((floatType) -1)/sqrt(2);
+      HANDLE_CUDA_ERROR( cudaMemcpy(rawDataIn_q[j], mods[j], size1[j], cudaMemcpyHostToDevice) );
+   }
+   memset(outO, 0, sizeof(floatType) * elementsout);
 
    // Extents
    std::unordered_map<int32_t, int64_t> extent;
@@ -210,10 +273,17 @@ int main()
    * Create Network Descriptor
    *******************************/
 
-   const int32_t* modesIn[] = {modesA.data(), modesB.data(), modesC.data()};
-   int32_t const numModesIn[] = {nmodeA, nmodeB, nmodeC};
-   const int64_t* extentsIn[] = {extentA.data(), extentB.data(), extentC.data()};
-   const int64_t* stridesIn[] = {NULL, NULL, NULL}; // strides are optional; if no stride is provided, then cuTensorNet assumes a generalized column-major data layout
+   const int32_t* modesIn[qn];// = {modesA.data(), modesB.data(), modesC.data()};
+   int32_t numModesIn[qn];// = {nmodeA, nmodeB, nmodeC};
+   const int64_t* extentsIn[qn]; //= {extentA.data(), extentB.data(), extentC.data()};
+   const int64_t* stridesIn[qn]; //= {NULL, NULL, NULL}; // strides are optional; if no stride is provided, then cuTensorNet assumes a generalized column-major data layout
+   for(int i=0;i<qn;i++){
+        modesIn[i]=modes[i].data();
+        numModesIn[i]=modes[i].size();
+        extentsIn[i]=extentm[i].data();
+        stridesIn[i]= NULL;
+   }
+
 
    // Notice that pointers are allocated via cudaMalloc are aligned to 256 byte
    // boundaries by default; however here we're checking the pointer alignment explicitly
@@ -229,16 +299,16 @@ int main()
       }
       return alignment;
    };
-   const uint32_t alignmentsIn[] = {getMaximalPointerAlignment(rawDataIn_d[0]),
-                                    getMaximalPointerAlignment(rawDataIn_d[1]),
-                                    getMaximalPointerAlignment(rawDataIn_d[2])};
-   const uint32_t alignmentOut = getMaximalPointerAlignment(D_d);
+   uint32_t alignmentsIn[qn];
+   for(int i=0;i<qn;i++){
+      alignmentsIn[i] = getMaximalPointerAlignment(rawDataIn_q[i]);}
+   const uint32_t alignmentOut = getMaximalPointerAlignment(out_d);
 
    // setup tensor network
    cutensornetNetworkDescriptor_t descNet;
    HANDLE_ERROR( cutensornetCreateNetworkDescriptor(handle,
                                                 numInputs, numModesIn, extentsIn, stridesIn, modesIn, alignmentsIn,
-                                                nmodeD, extentD.data(), /*stridesOut = */NULL, modesD.data(), alignmentOut,
+                                                out.size(), extentout.data(), /*stridesOut = */NULL, out.data(), alignmentOut,
                                                 typeData, typeCompute,
                                                 &descNet) );
 
@@ -356,7 +426,7 @@ int main()
    HANDLE_ERROR( cutensornetContractionAutotune(handle,
                            plan,
                            rawDataIn_d,
-                           D_d,
+                           out_d,
                            workDesc,
                            autotunePref,
                            stream) );
