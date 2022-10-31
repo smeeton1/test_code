@@ -2,6 +2,9 @@
  * Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES.
  * 
  * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * nvcc tensornet_example.cu -I${CUQUANTUM_ROOT}/include -I${CUTENSOR_ROOT}/include -L${CUQUANTUM_ROOT}/lib -L${CUTENSOR_ROOT}/lib/11 -lcutensornet -lcutensor -o tensornet_example
+ *
  */  
 
 // Sphinx: #1
@@ -91,7 +94,7 @@ int main()
    /**********************
    * Computing: D_{m,x,n,y} = A_{m,h,k,n} B_{u,k,h} C_{x,u,y}
    **********************/
-   int qn=3;
+   int qn=4;
    int32_t numInputs = qn;
 
    // Create vector of modes
@@ -107,6 +110,7 @@ int main()
    for(int i=0;i<qn;i++){
            modes[i].push_back(i);
            modes[i].push_back(i+1);
+           printf("%d %d\n",i,i+1);
            extent1[i]=2;
    }
    extent1[qn]=2;
@@ -156,12 +160,14 @@ int main()
 
 
    for(int j =0;j<qn;j++){
-      for (uint64_t i = 0; i < elements[j]-1; i++)
-         mods[j][i] = ((floatType) 1)/sqrt(2);
-      mods[j][elements[j]] = ((floatType) -1)/sqrt(2);
+      for (uint64_t i = 0; i < elements[j]; i++)
+         mods[j][i] = ((floatType) 1)/sqrt(2.0);
+      mods[j][elements[j]] = ((floatType) -1)/sqrt(2.0);
       HANDLE_CUDA_ERROR( cudaMemcpy(rawDataIn_q[j], mods[j], size1[j], cudaMemcpyHostToDevice) );
    }
    memset(outO, 0, sizeof(floatType) * elementsout);
+   printf("%f %f %f %f\n",mods[1][1],mods[1][2],mods[1][3],mods[1][4]);
+   //printf("%d\n",elementsout);
 
    // Extents
    std::unordered_map<int32_t, int64_t> extent;
@@ -425,7 +431,7 @@ int main()
    // modify the plan again to find the best pair-wise contractions
    HANDLE_ERROR( cutensornetContractionAutotune(handle,
                            plan,
-                           rawDataIn_d,
+                           rawDataIn_q,
                            out_d,
                            workDesc,
                            autotunePref,
@@ -449,7 +455,7 @@ int main()
    const int numRuns = 3; // to get stable perf results
    for (int i=0; i < numRuns; ++i)
    {
-      cudaMemcpy(D_d, D, sizeD, cudaMemcpyHostToDevice); // restore output
+      cudaMemcpy(out_d, outO, out.size(), cudaMemcpyHostToDevice); // restore output
       cudaDeviceSynchronize();
 
       /*
@@ -462,8 +468,8 @@ int main()
       int32_t accumulateOutput = 0;
       HANDLE_ERROR( cutensornetContractSlices(handle,
                                  plan,
-                                 rawDataIn_d,
-                                 D_d,
+                                 rawDataIn_q,
+                                 out_d,
                                  accumulateOutput,
                                  workDesc,
                                  sliceGroup,    // Alternatively, NULL can also be used to contract over all the slices instead of specifying a sliceGroup object.
@@ -490,6 +496,8 @@ int main()
    printf("numSlices: %ld\n", numSlices);
    printf("%.2f ms / slice\n", minTimeCUTENSOR * 1000.f / numSlices);
    printf("%.2f GFLOPS/s\n", flops/1e9/minTimeCUTENSOR );
+   printf("%f %f\n",outO[1],outO[2]);
+   printf("%f %f\n",outO[3],outO[4]);
 
    HANDLE_ERROR( cutensornetDestroySliceGroup(sliceGroup) );
    HANDLE_ERROR( cutensornetDestroy(handle) );
