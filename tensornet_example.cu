@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include  <iostream>
+
 #include <unordered_map>
 #include <vector>
 #include <cassert>
@@ -94,7 +96,7 @@ int main()
    /**********************
    * Computing: D_{m,x,n,y} = A_{m,h,k,n} B_{u,k,h} C_{x,u,y}
    **********************/
-   int qn=4;
+   int32_t qn=3;
    int32_t numInputs = qn;
 
    // Create vector of modes
@@ -133,6 +135,7 @@ int main()
       elements[i]= 1;
       for (auto mode : modes[i])
          elements[i] *= extent1[mode];
+      std::cout<<elements[i]<<"\n";
    }
 
    size_t elementsout = 1;
@@ -140,11 +143,12 @@ int main()
       elementsout *= extent1[mode];
 
    size_t size1[qn];
-   for(int i=0;i<qn;i++)
-      size1[i]= sizeof(floatType) * elements[i];
+   for(int i=0;i<qn;i++){
+      size1[i]= elements[i];
+      std::cout << size1[i]<<" "<< elements[i]<<"\n";}
 
-   size_t sizeout = sizeof(floatType) * elementsout;
-
+   size_t sizeout =  elementsout;
+   std::cout<< sizeout << " "<< sizeof(modes)/sizeof(modes[0]) <<"\n";
 
    void* rawDataIn_q[qn];
    void* out_d;
@@ -153,20 +157,26 @@ int main()
    HANDLE_CUDA_ERROR( cudaMalloc((void**) &out_d, sizeout));
 
    floatType *mods[qn];
-   for(int i=0;i<qn;i++)
-          mods[i]= (floatType*) malloc(sizeof(floatType) * elements[i]);
+   std::cout<< sizeof(mods)<<"\n";
+   for(int i=0;i<qn;i++){
+          mods[i]= (floatType*) malloc(elements[i]);
+          std::cout<<sizeof(mods[i])<<" "<<elements[i]<<"\n";}
 
-   floatType *outO = (floatType*) malloc(sizeof(floatType) * elementsout);
-
+   floatType *outO = (floatType*) malloc( elementsout);
+   std::cout  << sizeof(outO)/sizeof(outO[0]) << " " << elementsout <<" "<< sizeof(mods)/sizeof(mods[0])<<"\n";
 
    for(int j =0;j<qn;j++){
-      for (uint64_t i = 0; i < elements[j]; i++)
+      for (uint64_t i = 0; i < elements[j]-1; i++)
          mods[j][i] = ((floatType) 1)/sqrt(2.0);
-      mods[j][elements[j]] = ((floatType) -1)/sqrt(2.0);
+      mods[j][elements[j]-1] = ((floatType) -1)/sqrt(2.0);
       HANDLE_CUDA_ERROR( cudaMemcpy(rawDataIn_q[j], mods[j], size1[j], cudaMemcpyHostToDevice) );
    }
    memset(outO, 0, sizeof(floatType) * elementsout);
-   printf("%f %f %f %f\n",mods[1][1],mods[1][2],mods[1][3],mods[1][4]);
+   //printf("%f %f %f %f \n",mods[1][0],mods[1][1],mods[1][2],mods[1][12]);
+   std::cout  << sizeof(mods[1])  <<"\n";
+     for(int j=0; j<qn; j++)
+      for(int  i=0; i< elements[j]; i++){
+       std::cout << i<< " "<< mods[j][i] << "\n";}
    //printf("%d\n",elementsout);
 
    // Extents
@@ -479,6 +489,9 @@ int main()
       auto time = timer.seconds();
       minTimeCUTENSOR = (minTimeCUTENSOR < time) ? minTimeCUTENSOR : time;
    }
+      for(int  i=0; i< elementsout; i++){
+      //outO[i]=((floatType *) out_d[i]);
+       std::cout << i<< " "<< outO[i] << "\n";}
 
    printf("Contract the network, each slice uses the same contraction plan.\n");
 
@@ -496,8 +509,13 @@ int main()
    printf("numSlices: %ld\n", numSlices);
    printf("%.2f ms / slice\n", minTimeCUTENSOR * 1000.f / numSlices);
    printf("%.2f GFLOPS/s\n", flops/1e9/minTimeCUTENSOR );
-   printf("%f %f\n",outO[1],outO[2]);
-   printf("%f %f\n",outO[3],outO[4]);
+   std::vector<int32_t> state_vec_as_eigen = out;
+   fflush(stdout);
+   std::cout << "MPS Result:\n"<<sizeof(outO)<<"\n";
+   for(int  i=0; i< elementsout; i++){
+      //outO[i]=((floatType *) out_d[i]);
+       std::cout << i<< " "<< outO[i] << "\n";}
+   //fprint flush
 
    HANDLE_ERROR( cutensornetDestroySliceGroup(sliceGroup) );
    HANDLE_ERROR( cutensornetDestroy(handle) );
